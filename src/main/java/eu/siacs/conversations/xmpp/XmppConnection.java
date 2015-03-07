@@ -593,6 +593,7 @@ public class XmppConnection implements Runnable {
 			if (!saslMechanism.getClientFirstMessage().isEmpty()) {
 				auth.setContent(saslMechanism.getClientFirstMessage());
 			}
+			Log.d(Config.LOGTAG,account.getJid()+": "+auth.toString());
 			tagWriter.writeElement(auth);
 		} else if (this.streamFeatures.hasChild("sm", "urn:xmpp:sm:"
 					+ smVersion)
