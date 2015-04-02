@@ -22,12 +22,12 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
-import android.widget.ListView;
 import android.widget.PopupMenu;
 import android.widget.PopupMenu.OnMenuItemClickListener;
 import android.widget.Toast;
 
 import net.java.otr4j.session.SessionStatus;
+import de.timroes.android.listview.EnhancedListView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -77,7 +77,7 @@ public class ConversationActivity extends XmppActivity
 
 	private List<Conversation> conversationList = new ArrayList<>();
 	private Conversation mSelectedConversation = null;
-	private ListView listView;
+	private EnhancedListView listView;
 	private ConversationFragment mConversationFragment;
 
 	private ArrayAdapter<Conversation> listAdapter;
@@ -156,7 +156,7 @@ public class ConversationActivity extends XmppActivity
 		transaction.replace(R.id.selected_conversation, this.mConversationFragment, "conversation");
 		transaction.commit();
 
-		listView = (ListView) findViewById(R.id.list);
+		listView = (EnhancedListView) findViewById(R.id.list);
 		this.listAdapter = new ConversationAdapter(this, conversationList);
 		listView.setAdapter(this.listAdapter);
 
@@ -178,6 +178,49 @@ public class ConversationActivity extends XmppActivity
 				openConversation();
 			}
 		});
+
+		listView.setDismissCallback(new EnhancedListView.OnDismissCallback() {
+
+			@Override
+			public EnhancedListView.Undoable onDismiss(EnhancedListView enhancedListView, final int position) {
+				final Conversation item = listAdapter.getItem(position);
+				listAdapter.remove(item);
+				listAdapter.notifyDataSetChanged();
+
+				if (position == 0 && listAdapter.getCount() == 0) {
+					endConversation(item, false, true);
+					return null;
+				}
+				else if (getSelectedConversation() == item) {
+					setSelectedConversation(listAdapter.getItem(0));
+					endConversation(item, false, true);
+				}
+
+				return new EnhancedListView.Undoable() {
+					@Override
+					public void undo() {
+						listAdapter.insert(item, position);
+						listAdapter.notifyDataSetChanged();
+					}
+
+					@Override
+					public void discard() {
+						endConversation(item, false, false);
+					}
+
+					@Override
+					public String getTitle() {
+						return getResources().getString(R.string.title_undo_swipe_out_conversation);
+					}
+				};
+			}
+		});
+		listView.enableSwipeToDismiss();
+		listView.setSwipingLayout(R.id.swipeable_item);
+		listView.setUndoStyle(EnhancedListView.UndoStyle.SINGLE_POPUP);
+		listView.setUndoHideDelay(3000);
+		listView.setRequireTouchBeforeDismiss(false);
+
 		mContentView = findViewById(R.id.content_view_spl);
 		if (mContentView == null) {
 			mContentView = findViewById(R.id.content_view_ll);
@@ -485,13 +528,21 @@ public class ConversationActivity extends XmppActivity
 	}
 
 	public void endConversation(Conversation conversation) {
-		showConversationsOverview();
+		endConversation(conversation, true, true);
+	}
+
+	public void endConversation(Conversation conversation, boolean showOverview, boolean reinit) {
+		if (showOverview) {
+			showConversationsOverview();
+		}
 		xmppConnectionService.archiveConversation(conversation);
-		if (conversationList.size() > 0) {
-			setSelectedConversation(conversationList.get(0));
-			this.mConversationFragment.reInit(getSelectedConversation());
-		} else {
-			setSelectedConversation(null);
+		if (reinit) {
+			if (conversationList.size() > 0) {
+				setSelectedConversation(conversationList.get(0));
+				this.mConversationFragment.reInit(getSelectedConversation());
+			} else {
+				setSelectedConversation(null);
+			}
 		}
 	}
 
@@ -744,6 +795,7 @@ public class ConversationActivity extends XmppActivity
 
 	@Override
 	public void onPause() {
+		listView.discardUndo();
 		super.onPause();
 		this.mActivityPaused = true;
 		if (this.xmppConnectionServiceBound) {
