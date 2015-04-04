@@ -193,7 +193,8 @@ public class ConversationActivity extends XmppActivity
 				}
 				else if (getSelectedConversation() == item) {
 					setSelectedConversation(listAdapter.getItem(0));
-					endConversation(item, false, true);
+					ConversationActivity.this.mConversationFragment
+							.reInit(getSelectedConversation());
 				}
 
 				return new EnhancedListView.Undoable() {
@@ -210,7 +211,11 @@ public class ConversationActivity extends XmppActivity
 
 					@Override
 					public String getTitle() {
-						return getResources().getString(R.string.title_undo_swipe_out_conversation);
+						if (item.getMode() == Conversation.MODE_MULTI) {
+							return getResources().getString(R.string.title_undo_swipe_out_muc);
+						} else {
+							return getResources().getString(R.string.title_undo_swipe_out_conversation, item.getName());
+						}
 					}
 				};
 			}
