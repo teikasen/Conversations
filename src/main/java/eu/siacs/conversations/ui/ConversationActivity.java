@@ -76,7 +76,7 @@ public class ConversationActivity extends XmppActivity
 	private View mContentView;
 
 	private List<Conversation> conversationList = new ArrayList<>();
-	private Conversation blacklistedConversation = null;
+	private Conversation swipedConversation = null;
 	private Conversation mSelectedConversation = null;
 	private EnhancedListView listView;
 	private ConversationFragment mConversationFragment;
@@ -115,6 +115,7 @@ public class ConversationActivity extends XmppActivity
 
 	public void hideConversationsOverview() {
 		if (mContentView instanceof SlidingPaneLayout) {
+			listView.discardUndo();
 			SlidingPaneLayout mSlidingPaneLayout = (SlidingPaneLayout) mContentView;
 			mSlidingPaneLayout.closePane();
 		}
@@ -184,16 +185,16 @@ public class ConversationActivity extends XmppActivity
 
 			@Override
 			public EnhancedListView.Undoable onDismiss(EnhancedListView enhancedListView, final int position) {
-				final Conversation item = listAdapter.getItem(position);
-				listAdapter.remove(item);
+				swipedConversation = listAdapter.getItem(position);
+				listAdapter.remove(swipedConversation);
 				listAdapter.notifyDataSetChanged();
-				blacklistedConversation = item;
+				swipedConversation.markRead();
 
 				if (position == 0 && listAdapter.getCount() == 0) {
-					endConversation(item, false, true);
+					endConversation(swipedConversation, false, true);
 					return null;
 				}
-				else if (getSelectedConversation() == item) {
+				else if (getSelectedConversation() == swipedConversation) {
 					setSelectedConversation(listAdapter.getItem(0));
 					ConversationActivity.this.mConversationFragment
 							.reInit(getSelectedConversation());
@@ -202,20 +203,25 @@ public class ConversationActivity extends XmppActivity
 				return new EnhancedListView.Undoable() {
 					@Override
 					public void undo() {
-						listAdapter.insert(item, position);
+						listAdapter.insert(swipedConversation, position);
 						listAdapter.notifyDataSetChanged();
-						blacklistedConversation = null;
+						swipedConversation = null;
 					}
 
 					@Override
 					public void discard() {
-						endConversation(item, false, false);
-						blacklistedConversation = null;
+						if (!swipedConversation.isRead()
+								&& swipedConversation.getMode() == Conversation.MODE_SINGLE) {
+							swipedConversation = null;
+							return;
+						}
+						endConversation(swipedConversation, false, false);
+						swipedConversation = null;
 					}
 
 					@Override
 					public String getTitle() {
-						if (item.getMode() == Conversation.MODE_MULTI) {
+						if (swipedConversation.getMode() == Conversation.MODE_MULTI) {
 							return getResources().getString(R.string.title_undo_swipe_out_muc);
 						} else {
 							return getResources().getString(R.string.title_undo_swipe_out_conversation);
@@ -1074,6 +1080,13 @@ public class ConversationActivity extends XmppActivity
 	public void updateConversationList() {
 		xmppConnectionService
 			.populateWithOrderedConversations(conversationList);
+		if (swipedConversation != null) {
+			if (swipedConversation.isRead()) {
+				conversationList.remove(swipedConversation);
+			} else {
+				listView.discardUndo();
+			}
+		}
 		listAdapter.notifyDataSetChanged();
 	}
 
@@ -1124,7 +1137,6 @@ public class ConversationActivity extends XmppActivity
 	@Override
 	protected void refreshUiReal() {
 		updateConversationList();
-		conversationList.remove(blacklistedConversation);
 		if (xmppConnectionService != null && xmppConnectionService.getAccounts().size() == 0) {
 			if (!mRedirected) {
 				this.mRedirected = true;
