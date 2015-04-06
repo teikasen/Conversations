@@ -115,7 +115,6 @@ public class ConversationActivity extends XmppActivity
 
 	public void hideConversationsOverview() {
 		if (mContentView instanceof SlidingPaneLayout) {
-			listView.discardUndo();
 			SlidingPaneLayout mSlidingPaneLayout = (SlidingPaneLayout) mContentView;
 			mSlidingPaneLayout.closePane();
 		}
@@ -185,26 +184,35 @@ public class ConversationActivity extends XmppActivity
 
 			@Override
 			public EnhancedListView.Undoable onDismiss(EnhancedListView enhancedListView, final int position) {
+
+				boolean formerlySelected;
 				swipedConversation = listAdapter.getItem(position);
 				listAdapter.remove(swipedConversation);
-				listAdapter.notifyDataSetChanged();
 				swipedConversation.markRead();
 
 				if (position == 0 && listAdapter.getCount() == 0) {
 					endConversation(swipedConversation, false, true);
 					return null;
-				}
-				else if (getSelectedConversation() == swipedConversation) {
+				} else if (getSelectedConversation() == swipedConversation) {
+					formerlySelected = true;
 					setSelectedConversation(listAdapter.getItem(0));
 					ConversationActivity.this.mConversationFragment
 							.reInit(getSelectedConversation());
+				} else {
+					formerlySelected = false;
 				}
 
+				final boolean wasSelected = formerlySelected;
 				return new EnhancedListView.Undoable() {
+
 					@Override
 					public void undo() {
 						listAdapter.insert(swipedConversation, position);
-						listAdapter.notifyDataSetChanged();
+						if (wasSelected) {
+							setSelectedConversation(swipedConversation);
+							ConversationActivity.this.mConversationFragment
+									.reInit(getSelectedConversation());
+						}
 						swipedConversation = null;
 					}
 
@@ -262,6 +270,7 @@ public class ConversationActivity extends XmppActivity
 
 				@Override
 				public void onPanelClosed(View arg0) {
+					listView.discardUndo();
 					openConversation();
 				}
 
