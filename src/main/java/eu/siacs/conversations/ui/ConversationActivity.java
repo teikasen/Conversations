@@ -193,6 +193,7 @@ public class ConversationActivity extends XmppActivity
 				swipedConversation = listAdapter.getItem(position);
 				listAdapter.remove(swipedConversation);
 				swipedConversation.markRead();
+				xmppConnectionService.getNotificationService().clear(swipedConversation);
 
 				final int top = (v == null) ? 0 : (v.getTop() - listView.getPaddingTop());
 
