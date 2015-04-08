@@ -189,13 +189,12 @@ public class ConversationActivity extends XmppActivity
 
 				final int index = listView.getFirstVisiblePosition();
 				View v = listView.getChildAt(0);
+				final int top = (v == null) ? 0 : (v.getTop() - listView.getPaddingTop());
 
 				swipedConversation = listAdapter.getItem(position);
 				listAdapter.remove(swipedConversation);
 				swipedConversation.markRead();
 				xmppConnectionService.getNotificationService().clear(swipedConversation);
-
-				final int top = (v == null) ? 0 : (v.getTop() - listView.getPaddingTop());
 
 				if (position == 0 && listAdapter.getCount() == 0) {
 					endConversation(swipedConversation, false, true);
@@ -221,8 +220,8 @@ public class ConversationActivity extends XmppActivity
 									.reInit(getSelectedConversation());
 						}
 						swipedConversation = null;
+						listAdapter.notifyDataSetChanged();
 						listView.setSelectionFromTop(index + (listView.getChildCount() < position ? 1 : 0), top);
-
 					}
 
 					@Override
