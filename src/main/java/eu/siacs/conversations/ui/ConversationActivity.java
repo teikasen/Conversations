@@ -183,12 +183,18 @@ public class ConversationActivity extends XmppActivity
 		listView.setDismissCallback(new EnhancedListView.OnDismissCallback() {
 
 			@Override
-			public EnhancedListView.Undoable onDismiss(EnhancedListView enhancedListView, final int position) {
+			public EnhancedListView.Undoable onDismiss(final EnhancedListView enhancedListView, final int position) {
 
 				boolean formerlySelected;
+
+				final int index = listView.getFirstVisiblePosition();
+				View v = listView.getChildAt(0);
+
 				swipedConversation = listAdapter.getItem(position);
 				listAdapter.remove(swipedConversation);
 				swipedConversation.markRead();
+
+				final int top = (v == null) ? 0 : (v.getTop() - listView.getPaddingTop());
 
 				if (position == 0 && listAdapter.getCount() == 0) {
 					endConversation(swipedConversation, false, true);
@@ -214,6 +220,8 @@ public class ConversationActivity extends XmppActivity
 									.reInit(getSelectedConversation());
 						}
 						swipedConversation = null;
+						listView.setSelectionFromTop(index + (listView.getChildCount() < position ? 1 : 0), top);
+
 					}
 
 					@Override
