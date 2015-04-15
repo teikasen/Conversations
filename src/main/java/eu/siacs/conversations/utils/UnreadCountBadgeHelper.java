@@ -1,8 +1,10 @@
 package eu.siacs.conversations.utils;
 
+import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
 import android.util.Log;
 
@@ -21,6 +23,7 @@ public class UnreadCountBadgeHelper {
 			final String activity = context.getPackageManager().getLaunchIntentForPackage(packageName).getComponent().getClassName();
 			updateTeslaUnreadApi(context, packageName, activity, count);
 			updateApexNotificationApi(context, packageName, activity, count);
+			updateSamsungApi(context, packageName, activity, count);
 		}
 	}
 
@@ -34,12 +37,12 @@ public class UnreadCountBadgeHelper {
 											 final int count) {
 		try {
 			ContentValues contentValues = new ContentValues();
-			contentValues.put("tag",packageName+"/"+activity);
-			contentValues.put("count",count);
+			contentValues.put("tag", packageName + "/" + activity);
+			contentValues.put("count", count);
 			context.getContentResolver().insert(
 					Uri.parse("content://com.teslacoilsw.notifier/unread_count"),
 					contentValues
-					);
+			);
 		} catch (IllegalArgumentException e) {
 			return;
 		} catch (Exception e) {
@@ -55,10 +58,43 @@ public class UnreadCountBadgeHelper {
 												  final String activity,
 												  final int count) {
 		Intent intent = new Intent("com.anddoes.launcher.COUNTER_CHANGED");
-		intent.putExtra("package",packageName);
+		intent.putExtra("package", packageName);
 		//intent.putExtra("class",packageName+"."+activity);
-		intent.putExtra("class",activity);
-		intent.putExtra("count",count);
+		intent.putExtra("class", activity);
+		intent.putExtra("count", count);
 		context.sendBroadcast(intent);
+	}
+
+	private static void updateSamsungApi(final Context context,
+										 final String packageName,
+										 final String activity,
+										 final int count) {
+		Uri mUri = Uri.parse("content://com.sec.badge/apps?notify=true");
+		ContentResolver contentResolver = context.getContentResolver();
+		Cursor cursor = null;
+		ContentValues contentValues = new ContentValues();
+		contentValues.put("badgecount", count);
+		try {
+			cursor = contentResolver.query(mUri,new String[]{"_id"}, "package=?", new String[]{packageName}, null);
+			if (cursor != null) {
+				boolean entryActivityExist = false;
+				while (cursor.moveToNext()) {
+					int id = cursor.getInt(0);
+					contentResolver.update(mUri, contentValues, "_id=?", new String[]{String.valueOf(id)});
+					if (activity.equals(cursor.getString(cursor.getColumnIndex("class")))) {
+						entryActivityExist = true;
+					}
+				}
+				if (!entryActivityExist) {
+					contentValues.put("package", packageName);
+					contentValues.put("class", activity);
+					contentResolver.insert(mUri, contentValues);
+				}
+			}
+		} finally {
+			if (cursor != null) {
+				cursor.close();
+			}
+		}
 	}
 }
